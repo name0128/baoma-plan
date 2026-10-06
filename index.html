@@ -1590,7 +1590,11 @@ function setProvince(p){state.selectedProvince=p;save();paintFeed();}
 
 /* ===== 规划卡（副业含指南） ===== */
 function renderPlans(){
-  document.getElementById("plans").innerHTML=DIEMS.map((d,idx)=>{
+  const box=document.getElementById("plans");
+  // 记住当前展开的卡片，重渲染后恢复，避免点击阶段按钮时整卡自动收起
+  const openIds=new Set();
+  if(box) box.querySelectorAll('details.plan[data-pid][open]').forEach(el=>openIds.add(el.dataset.pid));
+  const html=DIEMS.map((d,idx)=>{
     const ph=d.phases;
     const rows=`<div class="ph">
       <div class="row"><span class="k near">近期</span><span>${ph.near}</span></div>
@@ -1613,11 +1617,15 @@ function renderPlans(){
     const stageChecks=`<div class="stage-chk">${stages.map(s=>
       `<button class="sc-btn ${doneP.includes(s)?'on':''}" onclick="toggleStage('${d.id}','${s}')">${doneP.includes(s)?'✓ ':'○ '}${stageName[s]}</button>`).join("")}
       <span class="sc-pct">${pDone}/3 · ${pPct}%</span></div>`;
-    return `<details class="plan">
+    return `<details class="plan" data-pid="${d.id}">
       <summary class="plan-h"><span class="badge">${d.name[0]}</span>
         <span class="nm">${d.name}</span><span class="sc-mini">${pPct}%</span><span class="ar">▾</span></summary>
       <div class="plan-body"><div class="why">${d.why}</div>${stageChecks}${rows}${extra}</div></details>`;
   }).join("");
+  if(box){
+    box.innerHTML=html;
+    openIds.forEach(id=>{const el=box.querySelector(`details.plan[data-pid="${id}"]`);if(el)el.open=true;});
+  }
 }
 function toggleStage(dim,stage){
   state.planDone=state.planDone||{};

@@ -312,11 +312,35 @@
   .lb-x{position:fixed;top:16px;right:18px;color:#fff;font-size:24px;cursor:pointer;text-shadow:0 1px 6px rgba(0,0,0,.5);}
 
 
+  /* ===== 一屏总览 ===== */
+  .ov-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .ov{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 9px;text-align:center;cursor:pointer;box-shadow:var(--shadow);}
+  .ov:active{background:var(--soft);}
+  .ov small{display:block;font-size:10.5px;color:var(--mut);}
+  .ov b{display:block;font-family:var(--hand);font-size:16px;color:var(--ink);margin:2px 0;line-height:1.2;}
+  .ov b.neg{color:#9a7b8e;}
+  .ov span{font-size:10px;color:var(--mut);}
+  /* ===== 模考成绩 ===== */
+  .score-list{display:flex;flex-direction:column;gap:5px;}
+  .score-it{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;}
+  .score-it .sc-d{color:var(--mut);font-size:11px;}
+  .score-it .sc-n{flex:1;color:var(--ink);}
+  .score-it .sc-v{font-family:var(--hand);font-size:14px;color:var(--ink);}
+  .score-it .sc-x{color:var(--gray);font-size:11px;cursor:pointer;}
+  /* ===== 规划阶段勾选 ===== */
+  .stage-chk{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
+  .sc-btn{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font-size:11.5px;color:var(--mut);cursor:pointer;font-family:inherit;}
+  .sc-btn.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .sc-pct{margin-left:auto;font-size:11.5px;color:var(--mut);}
+  .sc-mini{font-size:11px;color:var(--mut);margin-left:8px;}
+  /* ===== 娃成长曲线 ===== */
   /* ===== 月份切换条 ===== */
   .monthbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 6px;}
   .mb-btn{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit;}
   .mb-btn:active{background:var(--soft);}
-  .mb-cur{font-family:var(--hand);font-size:15px;letter-spacing:.03em;}
+  .mb-cur{font-family:var(--hand);font-size:15px;letter-spacing:.03em;cursor:pointer;padding:5px 12px;border:1px dashed var(--line);border-radius:999px;background:var(--card);transition:.15s;}
+  .mb-cur:active{background:var(--soft);border-color:var(--ink);}
+  .mb-ar{font-size:10px;color:var(--mut);margin-left:2px;}
   /* ===== 备考学习任务 ===== */
   .study-list{display:flex;flex-direction:column;gap:6px;}
   .study-t{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12.5px;cursor:pointer;}
@@ -401,6 +425,11 @@
       <div class="sec-t">我的处境<span class="sec-note">点＋从预设里选，也可自定义，随时可改</span></div>
       <div class="chips" id="chips"></div>
       <div id="statusPreset" class="preset-box"></div>
+    </div>
+
+    <div class="sec" id="sec-overview">
+      <div class="sec-t">一屏总览</div>
+      <div id="overview"></div>
     </div>
 
     <div class="sec" id="sec-board">
@@ -666,6 +695,8 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s)return f
   s.study=s.study||{tasks:[],checkin:{}};
   if(!Array.isArray(s.study.tasks))s.study.tasks=[];
   if(!s.study.checkin||typeof s.study.checkin!=="object")s.study.checkin={};
+  if(!Array.isArray(s.examScores))s.examScores=[];
+  if(!s.planDone||typeof s.planDone!=="object")s.planDone={};
   return s;}catch(e){return fresh();}}
 function fresh(){return{def:{},done:{},diary:{},ledger:[],saveGoal:200,travelGoal:3000,sideGoal:500,travelPlaces:[],exam:{},finance:{total:0,alloc:{},rates:{},stocks:[]},
   baby:{name:"宝宝",birthday:"",records:[]},
@@ -689,7 +720,7 @@ function fresh(){return{def:{},done:{},diary:{},ledger:[],saveGoal:200,travelGoa
     {province:"河南",area:"郑州市",name:"事业单位公开招聘",date:"10月报名进行中",tag:"事业编",link:""},
     {province:"河北",area:"下半年省直",name:"事业单位笔试",date:"10/17笔试·准考证10/13-17",tag:"事业编",link:""},
     {province:"河北",area:"石家庄",name:"市直事业单位",date:"10月报名进行中",tag:"事业编",link:""}
-  ]},tagDone:{},team:[],study:{tasks:[],checkin:{}},
+  ]},tagDone:{},team:[],study:{tasks:[],checkin:{}},examScores:[],planDone:{},
   status:STATUS.map(x=>({...x}))};}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast("存储空间不足：请删掉一些旧照片或旧记录再试");}}
 function isDone(t){return !!state.done[periodKey(t)+"|"+t.id];}
@@ -773,6 +804,30 @@ function delStatus(i){
     ok:"删除",danger:true,
     onOk:()=>{state.status.splice(i,1);save();renderChips();renderPreset();renderTagPlans();toast("已删除");}});
 }
+function renderOverview(){
+  const el=document.getElementById("overview");if(!el)return;
+  const ym=TODAY.slice(0,7);
+  const bal=totalSave();
+  const inc=sumLedger(r=>r.type==="income"&&r.date.startsWith(ym));
+  const exp=sumLedger(r=>r.type==="expense"&&r.date.startsWith(ym));
+  const sur=Math.round(inc-exp);
+  const dd=dailyDone(),dt=dailyTotal();
+  const e=state.exam||{};
+  const cd=e.date?Math.round((new Date(e.date)-new Date(TODAY))/86400000):null;
+  const studyMin=((state.study||{}).checkin||{})[TODAY]||0;
+  const team=state.team||[],teamDone=team.filter(t=>t.done).length;
+  const cells=[
+    {k:"小金库",v:"¥"+bal.toFixed(0),s:"余额",go:"ledger"},
+    {k:"本月结余",v:"¥"+sur.toFixed(0),s:sur>=0?"盈余":"赤字",go:"ledger",neg:sur<0},
+    {k:"今日打卡",v:dd+"/"+dt,s:"完成",go:"checkin"},
+    {k:"备考倒计时",v:cd!=null?(cd>0?cd+"天":"已到"):"-",s:"今日学"+studyMin+"分",go:"exam"},
+    {k:"家庭协作",v:teamDone+"/"+team.length,s:"已完成",go:"team"},
+    {k:"旅游资金",v:"¥"+sumLedger(r=>r.type==="save"&&r.cat==="旅游").toFixed(0),s:"每年出游",go:"ledger"}
+  ];
+  el.innerHTML=`<div class="ov-grid">${cells.map(c=>
+    `<div class="ov" onclick="${c.go==='checkin'?'jumpTo(\'sec-checkin\')':(c.go==='team'?"showPage('team')":"showPage('" + c.go + "')")}">
+      <small>${c.k}</small><b class="${c.neg?'neg':''}">${c.v}</b><span>${c.s}</span></div>`).join("")}</div>`;
+}
 function renderBoard(){
   const dt=dailyTotal(),dd=dailyDone(),wt=weeklyTotal(),wd=weeklyDone();
   const gt=document.getElementById("gTask");if(gt)gt.textContent=`今天 ${dd}/${dt} 件`;
@@ -828,7 +883,7 @@ function renderLedger(){
   const isCurM=LF_YM===TODAY.slice(0,7);
   const monthBar=`<div class="monthbar">
       <button class="mb-btn" onclick="shiftMonth(-1)">← 上月</button>
-      <b class="mb-cur">${LF_YM}${isCurM?' · 本月':''}</b>
+      <b class="mb-cur" onclick="pickMonth()" title="点击选择年月">${LF_YM}${isCurM?' · 本月':''} <span class="mb-ar">▾</span></b>
       <button class="mb-btn" ${isCurM?'disabled style="opacity:.35"':''} onclick="shiftMonth(1)">下月 →</button></div>`;
   const form=`<div class="seg" id="lfSeg">
       <button class="${LF_TYPE==="income"?"on":""}" onclick="setLfType('income')">收入</button>
@@ -914,6 +969,27 @@ function shiftMonth(d){
   const next=ymd(x).slice(0,7),cur=TODAY.slice(0,7);
   if(next>cur){toast("不能看未来月份");return;}
   LF_YM=next;renderLedger();
+}
+function pickMonth(){
+  const cur=TODAY.slice(0,7);
+  // 1) 有记账记录的月份（倒序）
+  const used=[...new Set((state.ledger||[]).map(r=>String(r.date||"").slice(0,7)).filter(m=>/^\d{4}-\d{2}$/.test(m)))].sort().reverse();
+  // 2) 近 24 个月（含本月，倒序）
+  const recent=[];const now=new Date(TODAY);
+  for(let i=0;i<24;i++){const x=new Date(now.getFullYear(),now.getMonth()-i,1);recent.push(ymd(x).slice(0,7));}
+  // 合并去重
+  const all=[...new Set([...used,...recent])].sort().reverse();
+  const opts=all.map(m=>{
+    const hasRec=(state.ledger||[]).some(r=>String(r.date||"").startsWith(m));
+    const tag=m===cur?"（本月）":(hasRec?"":"（无记录）");
+    return {label:m+tag,val:m,disabled:false};
+  });
+  uiPick({title:"选择年月",options:opts.map(o=>o.label),vals:opts.map(o=>o.val),cur:LF_YM,onPick:v=>setMonth(v)});
+}
+function setMonth(ym){
+  if(!/^\d{4}-\d{2}$/.test(ym))return;
+  if(ym>TODAY.slice(0,7)){toast("不能看未来月份");return;}
+  LF_YM=ym;renderLedger();toast("已切换到 "+ym);
 }
 function setGoal(){uiPrompt({title:"每月存入目标",
   hint:"定一个每月固定存进小金库的金额，金额小也比不存强。",
@@ -1236,8 +1312,41 @@ function renderStudyHtml(){
     <svg viewBox="0 0 ${W} ${H}" width="100%" style="margin-top:8px">${bars}</svg>
     <div style="font-size:11px;color:var(--mut);margin:2px 0 8px">近7天学习时长（分钟）</div>
     <div class="study-list">${tList||'<div style="font-size:11.5px;color:var(--mut);padding:4px 0">还没有备考任务，加一条开始～</div>'}</div>
-    <button class="bt-chip" style="margin-top:6px" onclick="addStudyTask()">＋ 加一条备考任务</button></div>`;
+    <button class="bt-chip" style="margin-top:6px" onclick="addStudyTask()">＋ 加一条备考任务</button>
+    ${scoreSecHtml()}</div>`;
 }
+function scoreSecHtml(){
+  const sc=state.examScores||[];
+  const rows=sc.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,8).map(s=>
+    `<div class="score-it"><span class="sc-d">${s.date.slice(5)}</span><span class="sc-n">${esc(s.name||"模考")}</span><b class="sc-v">${s.score}</b><span class="sc-x" onclick="delScore('${s.id}')">✕</span></div>`).join("");
+  // 趋势迷你图（按时间正序）
+  const asc=sc.slice().sort((a,b)=>a.date<b.date?-1:1);
+  let spark="";
+  if(asc.length>=2){
+    const vals=asc.map(x=>+x.score||0),mn=Math.min(...vals),mx=Math.max(...vals),span=(mx-mn)||1;
+    const W=320,H=64,p=10,step=(W-p*2)/(asc.length-1);
+    const pts=asc.map((x,i)=>{const yy=p+(1-(( +x.score||0)-mn)/span)*(H-p*2);return {x:p+i*step,y:yy};});
+    const d=pts.map((q,i)=>(i?'L':'M')+q.x.toFixed(1)+' '+q.y.toFixed(1)).join(' ');
+    const dots=pts.map(q=>`<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="2.6" fill="#1b1b1a"/>`).join('');
+    const last=vals[vals.length-1],prev=vals[vals.length-2];
+    const delta=last-prev;
+    spark=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="margin:6px 0"><path d="${d}" fill="none" stroke="#1b1b1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>
+      <div style="font-size:11.5px;color:var(--mut)">最近一次 <b style="color:var(--ink)">${last}</b> 分，比上次 <b style="color:${delta>=0?'var(--ink)':'#9a7b8e'}">${delta>=0?'+':''}${delta}</b> 分</div>`;
+  }
+  return `<div style="margin-top:12px;border-top:1px dashed var(--line);padding-top:10px">
+    <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px">📝 模考成绩</div>
+    ${spark}
+    <div class="score-list">${rows||'<div style="font-size:11.5px;color:var(--mut);padding:2px 0">还没有成绩，记一次模考开始～</div>'}</div>
+    <button class="bt-chip" style="margin-top:6px" onclick="addScore()">＋ 记一次模考成绩</button></div>`;
+}
+function addScore(){
+  uiPrompt({title:"记一次模考",ph:"科目，如 行测",ph2:"分数，如 68.5",ok:"保存",
+    onOk:(n,v)=>{n=(n||"").trim();const s=parseFloat(v);
+      if(!(s>0)){toast("请填有效分数");return;}
+      state.examScores.push({id:"sc"+Date.now()+Math.random().toString(36).slice(2,6),date:TODAY,name:n||"模考",score:s});
+      save();renderExam();toast("已记录 "+s+" 分");}});
+}
+function delScore(id){state.examScores=(state.examScores||[]).filter(x=>x.id!==id);save();renderExam();}
 function saveStudyMin(){
   const el=document.getElementById("studyMin");const v=parseInt(el&&el.value)||0;
   state.study.checkin[TODAY]=Math.max(0,v);save();renderExam();renderBoard();
@@ -1301,11 +1410,26 @@ function renderPlans(){
         <div class="route">${INCOME_GUIDE.route.map(r=>`<div class="r"><span class="rk">${r[0]}</span><span>${r[1]}</span></div>`).join("")}</div>
         <ul class="tips">${INCOME_GUIDE.tips.map(t=>`<li>${t}</li>`).join("")}</ul>
       </div>`;}
+    const stages=["near","mid","far"],stageName={near:"近期",mid:"中期",far:"远期"};
+    const doneP=state.planDone[d.id]||[];
+    const pDone=stages.filter(s=>doneP.includes(s)).length;
+    const pPct=Math.round(pDone/3*100);
+    const stageChecks=`<div class="stage-chk">${stages.map(s=>
+      `<button class="sc-btn ${doneP.includes(s)?'on':''}" onclick="toggleStage('${d.id}','${s}')">${doneP.includes(s)?'✓ ':'○ '}${stageName[s]}</button>`).join("")}
+      <span class="sc-pct">${pDone}/3 · ${pPct}%</span></div>`;
     return `<details class="plan">
       <summary class="plan-h"><span class="badge">${d.name[0]}</span>
-        <span class="nm">${d.name}</span><span class="ar">▾</span></summary>
-      <div class="plan-body"><div class="why">${d.why}</div>${rows}${extra}</div></details>`;
+        <span class="nm">${d.name}</span><span class="sc-mini">${pPct}%</span><span class="ar">▾</span></summary>
+      <div class="plan-body"><div class="why">${d.why}</div>${stageChecks}${rows}${extra}</div></details>`;
   }).join("");
+}
+function toggleStage(dim,stage){
+  state.planDone=state.planDone||{};
+  const arr=state.planDone[dim]||[];
+  const i=arr.indexOf(stage);
+  if(i>=0)arr.splice(i,1);else arr.push(stage);
+  state.planDone[dim]=arr;
+  save();renderPlans();toast(i>=0?"已取消"+({"near":"近期","mid":"中期","far":"远期"}[stage]):"完成"+({"near":"近期","mid":"中期","far":"远期"}[stage])+"✓");
 }
 function renderCheckin(){
   const ds=DIEMS.flatMap(d=>d.tasks.filter(t=>t.per==="d"));
@@ -1418,6 +1542,36 @@ function babyAgeTxt(){
   const y=Math.floor(months/12),m=months%12;
   return (y?y+"岁":"")+(m||!y?(m+"个月"):"")+" · 来世界第 "+(days+1)+" 天";
 }
+function growthChartHtml(){
+  const recs=(state.baby.records||[]).filter(r=>r.hw&&(r.hw.h||r.hw.w));
+  if(recs.length<2)return '';
+  const pts=recs.slice().sort((a,b)=>a.date<b.date?-1:1);
+  // 分别取有身高/体重的点
+  const H=pts.filter(p=>p.hw.h).map(p=>({d:p.date,v:p.hw.h}));
+  const Wt=pts.filter(p=>p.hw.w).map(p=>({d:p.date,v:p.hw.w}));
+  const W=340,HT=140,pad=28,padB=24;
+  function mkSeries(arr,color,name){
+    if(arr.length<2)return '';
+    const vals=arr.map(x=>x.v),mn=Math.min(...vals),mx=Math.max(...vals),span=(mx-mn)||1;
+    const step=arr.length>1?(W-pad*2)/(arr.length-1):0;
+    const xy=arr.map((x,i)=>({x:pad+i*step,y:pad+(1-(x.v-mn)/span)*(HT-pad-padB)}));
+    const path=xy.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+    const dots=xy.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.6" fill="${color}"/>`).join('');
+    return `<path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
+  }
+  const hLine=mkSeries(H,'#1b1b1a','h'),wLine=mkSeries(Wt,'#9a7b8e','w');
+  if(!hLine&&!wLine)return '';
+  const hLast=H.length?H[H.length-1].v:null,wLast=Wt.length?Wt[Wt.length-1].v:null;
+  const labels=pts.filter((_,i)=>i===0||i===pts.length-1).map(p=>p.date.slice(5)).join('  →  ');
+  return `<div class="baby" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <b style="font-size:13px">成长曲线</b>
+      <span style="font-size:11px;color:var(--mut)">${labels}</span></div>
+    <div style="display:flex;gap:14px;font-size:11.5px;color:var(--mut);margin-bottom:4px">
+      <span><span style="display:inline-block;width:9px;height:2px;background:#1b1b1a;vertical-align:middle"></span> 身高 ${hLast?hLast+'cm':'-'}</span>
+      <span><span style="display:inline-block;width:9px;height:2px;background:#9a7b8e;vertical-align:middle"></span> 体重 ${wLast?wLast+'kg':'-'}</span></div>
+    <svg viewBox="0 0 ${W} ${HT}" width="100%">${hLine}${wLine}</svg></div>`;
+}
 function renderBaby(){
   const el=document.getElementById("babyApp");if(!el)return;
   const rc=state.baby.records||[];
@@ -1433,6 +1587,7 @@ function renderBaby(){
       <div class="bs"><b>${pc}</b><small>张照片</small></div>
       <div class="bs"><b>${rc.filter(r=>r.type==="mile").length}</b><small>个里程碑</small></div>
     </div></div>`;
+  const growth=growthChartHtml();
   const chips=`<div class="bt-row">${BABY_TYPES.map(t=>`<button class="bt-chip ${t.id===BABY_TYPE?"on":""}" data-t="${t.id}" onclick="setBabyType('${t.id}')">${t.t}</button>`).join("")}</div>`;
   const form=`<div class="baby" style="margin-bottom:16px">
     <div class="lf-row" style="margin-bottom:8px"><input id="babyDate" type="date" value="${TODAY}" style="max-width:150px"></div>
@@ -1445,7 +1600,7 @@ function renderBaby(){
   </div>`;
   const list=rc.length?`<div class="tl"><div class="tl-title">成长时间线（新 → 旧）</div>${rc.map(babyRecHtml).join("")}</div>`
     :`<div style="font-size:12.5px;color:#8f8d86;background:var(--soft);border:1px dashed #d8d6cf;border-radius:12px;padding:12px;line-height:1.8">还没有记录。<br>选好日期、写一句话、贴几张照片，点「贴进手账」——娃的每一小步都值得收藏。</div>`;
-  el.innerHTML=head+form+list;
+  el.innerHTML=head+growth+form+list;
 }
 function babyPendingHtml(){
   const add=`<div class="upl-add" onclick="document.getElementById('babyFile').click()">${ico("camera",20)}<span>加照片</span></div>`;
@@ -1873,7 +2028,7 @@ function uiPick(o){
   };
   m.onclick=e=>{if(e.target===m)closeDlg();};
 }
-function renderAll(){renderHeader();renderNav();renderShortcuts();renderChips();renderPreset();renderBoard();renderBaby();renderLedger();renderFinance();renderExam();renderFeed();renderTagPlans();renderPlans();renderCheckin();renderDiary();renderTeam();}
+function renderAll(){renderHeader();renderNav();renderShortcuts();renderChips();renderPreset();renderOverview();renderBoard();renderBaby();renderLedger();renderFinance();renderExam();renderFeed();renderTagPlans();renderPlans();renderCheckin();renderDiary();renderTeam();}
 renderAll();
 showPage('my');
 registerSW();

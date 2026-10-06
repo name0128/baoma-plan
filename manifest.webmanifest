@@ -1,0 +1,16 @@
+{
+  "name": "我的蜕变计划 · 宝妈行动小程序",
+  "short_name": "蜕变计划",
+  "description": "宝妈行动小程序：小金库、攒股息、备考招考、娃手账、旅游资金，走遍祖国大好河山",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf8f3",
+  "theme_color": "#faf8f3",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

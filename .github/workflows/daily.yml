@@ -1,0 +1,42 @@
+name: 每日更新招考信息
+
+on:
+  schedule:
+    # 每天 UTC 23:00（北京时间次日 07:00）自动运行；可按需调整
+    - cron: "0 23 * * *"
+  workflow_dispatch: {}   # 允许在 Actions 页面手动触发
+
+permissions:
+  contents: write        # 需要写回 feed.json
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 运行更新脚本
+        env:
+          ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}   # 推荐：智谱免费key，国内可注册，真联网检索
+          ZHIPUAI_MODEL: ${{ vars.ZHIPUAI_MODEL || 'glm-4-flash' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}     # 备选，国内不便使用
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+        run: python3 scripts/update_feed.py
+
+      - name: 提交更新（如有变化）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain feed.json)" ]; then
+            git add feed.json
+            git commit -m "chore: 自动更新招考信息 $(date +%F)"
+            git push
+          else
+            echo "feed.json 无变化，跳过提交"
+          fi

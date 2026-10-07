@@ -1677,14 +1677,20 @@ function toggleTagPlan(ci,ii){
   save();renderTagPlans();
 }
 function renderDiary(){
-  const inp=document.getElementById("diaryInput");inp.value=state.diary[TODAY]||"";
+  renderDiaryHist();
+  const inp=document.getElementById("diaryInput");
+  // 仅当输入框未聚焦时才回填当天内容，避免覆盖正在输入的字
+  if(inp&&document.activeElement!==inp) inp.value=state.diary[TODAY]||"";
+}
+function renderDiaryHist(){
   const days=Object.keys(state.diary).sort().reverse().slice(0,5);
   document.getElementById("diaryHist").innerHTML=days.map(d=>`<div><b>${d}</b>　${state.diary[d]}</div>`).join("");
 }
 function saveDiary(){
-  const v=document.getElementById("diaryInput").value.trim();
+  const inp=document.getElementById("diaryInput");
+  const v=inp.value.trim();
   if(v)state.diary[TODAY]=v;else delete state.diary[TODAY];
-  save();renderDiary();toast("已保存 · 今天你很棒");
+  save();inp.value="";renderDiaryHist();toast("已保存 · 今天你很棒");
 }
 const WHO={me:"我",hub:"老公",inlaw:"公婆",all:"大家"};
 function whoTxt(w){return WHO[w]||w;}

@@ -241,6 +241,11 @@
   .diary .hist{margin-top:12px;font-size:12.5px;color:#6f6e68;}
   .diary .hist div{padding:8px 0;border-bottom:1px dashed var(--line);}
   .diary .hist b{color:var(--ink);}
+  .diary .hist .dh-item{display:flex;align-items:flex-start;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line);}
+  .diary .hist .dh-tx{flex:1;word-break:break-all;line-height:1.55;}
+  .diary .hist .dh-act{display:flex;gap:5px;flex-shrink:0;align-items:center;}
+  .diary .hist .dh-edit,.diary .hist .dh-del{font-size:12px;padding:3px 9px;border-radius:8px;cursor:pointer;background:var(--soft);color:var(--ink);}
+  .diary .hist .dh-del{color:#c0392b;}
   .reset{margin-top:22px;text-align:center;}
   .reset button{background:none;border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:8px 18px;font-size:12px;cursor:pointer;font-family:inherit;}
   .reset .bk{background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 16px;font-size:12px;cursor:pointer;font-family:inherit;margin:0 4px;}
@@ -1676,21 +1681,35 @@ function toggleTagPlan(ci,ii){
   if(state.tagDone[k])delete state.tagDone[k];else state.tagDone[k]=true;
   save();renderTagPlans();
 }
+let editingDay=null;
 function renderDiary(){
   renderDiaryHist();
   const inp=document.getElementById("diaryInput");
   // 仅当输入框未聚焦时才回填当天内容，避免覆盖正在输入的字
-  if(inp&&document.activeElement!==inp) inp.value=state.diary[TODAY]||"";
+  if(inp&&document.activeElement!==inp) inp.value=state.diary[editingDay||TODAY]||"";
 }
 function renderDiaryHist(){
   const days=Object.keys(state.diary).sort().reverse().slice(0,5);
-  document.getElementById("diaryHist").innerHTML=days.map(d=>`<div><b>${d}</b>　${state.diary[d]}</div>`).join("");
+  document.getElementById("diaryHist").innerHTML=days.map(d=>`<div class="dh-item"><b>${d}</b><span class="dh-tx">${state.diary[d]}</span><span class="dh-act"><span class="dh-edit" onclick="editDiary('${d}')">改</span><span class="dh-del" onclick="delDiary('${d}')">✕</span></span></div>`).join("");
 }
 function saveDiary(){
   const inp=document.getElementById("diaryInput");
   const v=inp.value.trim();
-  if(v)state.diary[TODAY]=v;else delete state.diary[TODAY];
+  const day=editingDay||TODAY;
+  if(v)state.diary[day]=v;else delete state.diary[day];
+  editingDay=null;
   save();inp.value="";renderDiaryHist();toast("已保存 · 今天你很棒");
+}
+function editDiary(d){
+  const inp=document.getElementById("diaryInput");
+  inp.value=state.diary[d]||"";
+  editingDay=d;inp.focus();
+  toast("正在修改 "+d+" 的日记，改完点保存");
+}
+function delDiary(d){
+  uiConfirm("确定删除 "+d+" 的日记吗？",ok=>{ if(!ok)return;
+    delete state.diary[d]; if(editingDay===d)editingDay=null;
+    save();renderDiary();toast("已删除"); });
 }
 const WHO={me:"我",hub:"老公",inlaw:"公婆",all:"大家"};
 function whoTxt(w){return WHO[w]||w;}

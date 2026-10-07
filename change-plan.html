@@ -836,7 +836,7 @@ function normalize(s){
   if(!s.finance.rates)s.finance.rates={};if(!Array.isArray(s.finance.stocks))s.finance.stocks=[];if(s.finance.total==null)s.finance.total=0;
   s.examFeed=s.examFeed||{updated:"",items:[]};if(!Array.isArray(s.examFeed.items))s.examFeed.items=[];
   s.baby=s.baby||{name:"宝宝",birthday:"",records:[]};if(!Array.isArray(s.baby.records))s.baby.records=[];
-  if(!Array.isArray(s.status)||!s.status.length)s.status=STATUS.map(x=>({...x}));
+  if(!Array.isArray(s.status))s.status=[];
   if(!s.selectedProvince)s.selectedProvince="全国";
   if(!s.tagDone||typeof s.tagDone!=="object")s.tagDone={};
   if(!Array.isArray(s.team))s.team=[];
@@ -872,7 +872,7 @@ function fresh(){return{def:{},done:{},diary:{},ledger:[],saveGoal:200,travelGoa
     {province:"河北",area:"下半年省直",name:"事业单位笔试",date:"10/17笔试·准考证10/13-17",tag:"事业编",link:""},
     {province:"河北",area:"石家庄",name:"市直事业单位",date:"10月报名进行中",tag:"事业编",link:""}
   ]},tagDone:{},team:[],study:{tasks:[],checkin:{}},examScores:[],planDone:{},
-  status:STATUS.map(x=>({...x}))};}
+  status:[]};}
 function save(){
   try{
     const prev=localStorage.getItem(KEY);   // 上一版数据（还没被覆盖）

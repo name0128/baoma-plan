@@ -1,4 +1,4 @@
-const CACHE = 'cb-plan-v1';
+const CACHE = 'cb-plan-v2';
 const ASSETS = [
   './', './index.html', './change-plan.html',
   './feed.json', './manifest.webmanifest',
@@ -12,13 +12,14 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // network-first：优先取线上最新，避免桌面 PWA 被旧缓存卡住（如删除按钮 bug）
   e.respondWith(
-    caches.match(e.request).then(hit =>
-      hit || fetch(e.request).then(resp => {
+    fetch(e.request).then(resp => {
+      if (resp && resp.status === 200 && resp.type === 'basic') {
         const cp = resp.clone();
         caches.open(CACHE).then(c => c.put(e.request, cp));
-        return resp;
-      }).catch(() => caches.match('./index.html'))
-    )
+      }
+      return resp;
+    }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
   );
 });

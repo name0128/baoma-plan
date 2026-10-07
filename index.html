@@ -1287,7 +1287,7 @@ function renderFinance(){
     <div class="fin-sum" id="finSum"></div>
     <div class="charts" id="finChart"></div>
     ${renderStockHtml()}
-    ${renderCompareHtml()}
+    <div id="finCompare">${renderCompareHtml()}</div>
     <div class="fin-advice"><b>怎么增加已有资产：</b>
       <ol style="margin:4px 0 0;padding-left:18px">
         <li>先从每月结余里拨一点进 <b>旅游资金</b>（每年出游目标，积少成多），年底至少出游一次；余钱再放活期/货币基金留作机动；</li>
@@ -1326,6 +1326,7 @@ function renderCompareHtml(){
     <div style="font-size:11px;color:var(--mut);margin-top:6px">⚠ 股息有<b>股价波动、本金不保本</b>，单只别重仓；存款保本保息。不是"谁一定更好"，看你能承受多大波动。</div>
   </div>`;
 }
+function renderCompare(){const el=document.getElementById("finCompare");if(el)el.innerHTML=renderCompareHtml();}
 function updateFinSum(){
   const allocTotal=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0),0);
   const gainTotal=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0)*rateOf(n)/100,0)+stockDividend();
@@ -1364,7 +1365,20 @@ function stockTaxRate(t){return t==="short"?0.2:t==="mid"?0.1:0;}
 function stockNet(s){return (s.amount||0)*(s.yield||0)/100*(1-stockTaxRate(s.tax));}
 function stockDividendGross(){return (state.finance.stocks||[]).reduce((s,x)=>s+(x.amount||0)*(x.yield||0)/100,0);}
 function stockDividend(){return (state.finance.stocks||[]).reduce((s,x)=>s+stockNet(x),0);}
-function refreshStock(s){const el=document.getElementById("sg_"+s.id);if(el)el.textContent="¥"+stockNet(s).toFixed(0);updateFinSum();renderFinChart();}
+function refreshStock(s){const el=document.getElementById("sg_"+s.id);if(el)el.textContent="¥"+stockNet(s).toFixed(0);updateFinSum();renderFinChart();renderStockSum();renderCompare();}
+function stockSumHtml(){
+  const st=state.finance.stocks||[];
+  const gross=stockDividendGross(),net=stockDividend(),taxAmt=gross-net;
+  const totalAmt=st.reduce((s,x)=>s+(+x.amount||0),0);
+  const wYield=totalAmt>0?net/totalAmt*100:0;
+  return `<div class="fin-sum" style="margin:8px 0 0">
+      <div class="f"><b>¥${totalAmt.toFixed(0)}</b><small>组合持仓</small></div>
+      <div class="f"><b>¥${gross.toFixed(0)}</b><small>年税前股息</small></div>
+      <div class="f"><b>¥${net.toFixed(0)}</b><small>年税后到手</small></div>
+      <div class="f"><b>${wYield.toFixed(2)}%</b><small>组合股息率</small></div>
+      <div class="f"><b>¥${taxAmt.toFixed(0)}</b><small>被扣税</small></div></div>`;
+}
+function renderStockSum(){const el=document.getElementById("stockSum");if(el)el.innerHTML=stockSumHtml();}
 function renderStockHtml(){
   const st=state.finance.stocks||[];
   const rows=st.map(s=>{
@@ -1376,15 +1390,7 @@ function renderStockHtml(){
       <td id="sg_${s.id}" class="gn">¥${stockNet(s).toFixed(0)}</td>
       <td style="text-align:center"><span style="color:#c6c4bd;cursor:pointer" onclick="delStock('${s.id}')">✕</span></td></tr>`;
   }).join("");
-  const gross=stockDividendGross(),net=stockDividend(),taxAmt=gross-net;
-  const totalAmt=st.reduce((s,x)=>s+(+x.amount||0),0);
-  const wYield=totalAmt>0?net/totalAmt*100:0;
-  const totalDiv=`<div class="fin-sum" style="margin:8px 0 0">
-      <div class="f"><b>¥${totalAmt.toFixed(0)}</b><small>组合持仓</small></div>
-      <div class="f"><b>¥${gross.toFixed(0)}</b><small>年税前股息</small></div>
-      <div class="f"><b>¥${net.toFixed(0)}</b><small>年税后到手</small></div>
-      <div class="f"><b>${wYield.toFixed(2)}%</b><small>组合股息率</small></div>
-      <div class="f"><b>¥${taxAmt.toFixed(0)}</b><small>被扣税</small></div></div>`;
+  const totalDiv=stockSumHtml();
   return `<div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px">
     <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:4px">② 攒股息 · 每只股票单独填（股息率/次数/持股税率各不同）</div>
     <div style="font-size:11px;color:var(--mut);margin-bottom:6px">股息率填<b>年化</b>（上一年全年分红÷股价）；一年分几次只影响<b>到账节奏</b>，不影响年总额；持股&gt;1年免税。</div>
@@ -1400,7 +1406,7 @@ function renderStockHtml(){
       <span class="picksel small" id="stTaxBtn" onclick="pickNewTax()">${taxShort(ST_NEW_TAX)}<span class="ar">▼</span></span></div>
     <button class="primary" onclick="addStock()">+ 添加一只股票</button>
     <button class="seed" onclick="stockDemo()">填入示例（高股息股票）</button>
-    ${totalDiv}
+    <div id="stockSum">${totalDiv}</div>
   </div>
   <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px" id="calc"></div>`;
 }

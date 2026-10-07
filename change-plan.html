@@ -1922,12 +1922,12 @@ function babyRecHtml(r){
     if(r.hw.w)parts.push("体重 "+r.hw.w+" kg");
     hw=`<div class="bhw">${parts.join(" · ")}</div>`;
   }
-  const imgs=(r.photos||[]).length?`<div class="bimgs">${r.photos.map((p,i)=>`<img src="${p}" onclick="viewRec(${r.id},${i})">`).join("")}</div>`:"";
+  const imgs=(r.photos||[]).length?`<div class="bimgs">${r.photos.map((p,i)=>`<img src="${p}" onclick="viewRec('${r.id}',${i})">`).join("")}</div>`:"";
   return `<div class="brec">
     <div class="bh2"><span class="bdate">${esc(r.date)}</span><span class="btype${typeCls}">${babyTypeName(r.type)}</span></div>
     ${r.text?`<div class="btx">${esc(r.text)}</div>`:""}
     ${hw}${imgs}
-    <span class="bdel" onclick="delBaby(${r.id})">✕</span></div>`;
+    <span class="bdel" onclick="delBaby('${r.id}')">✕</span></div>`;
 }
 function viewImg(src){
   const m=document.getElementById("uiMask");if(!m)return;

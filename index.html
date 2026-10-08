@@ -550,7 +550,7 @@
 
     <div class="sec diary" id="sec-diary">
       <div class="sec-t">微日记</div>
-      <textarea id="diaryInput" rows="3" placeholder="今天做了什么、有什么感受…写一句给自己"></textarea>
+      <textarea id="diaryInput" rows="3" placeholder="今天做了什么、有什么感受…可多次记录，每天都能写好几句"></textarea>
       <button onclick="saveDiary()">保存今天的话</button>
       <div class="hist" id="diaryHist"></div>
     </div>
@@ -846,6 +846,7 @@ function normalize(s){
   if(!Array.isArray(s.examScores))s.examScores=[];
   if(!s.planDone||typeof s.planDone!=="object")s.planDone={};
   s.def=s.def&&typeof s.def==="object"?s.def:{};s.done=s.done&&typeof s.done==="object"?s.done:{};s.diary=s.diary&&typeof s.diary==="object"?s.diary:{};
+  for(const k in s.diary){ if(typeof s.diary[k]==="string") s.diary[k]=s.diary[k]?[{id:k+"_0",t:"",text:s.diary[k]}]:[]; }
   return s;
 }
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s)return fresh();return normalize(s);}catch(e){return fresh();}}
@@ -1742,34 +1743,47 @@ function toggleTagPlan(ci,ii){
   if(state.tagDone[k])delete state.tagDone[k];else state.tagDone[k]=true;
   save();renderTagPlans();
 }
-let editingDay=null;
+let editingDay=null,editingId=null;
+function nowHM(){const d=new Date();return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);}
+function diaryArr(day){const x=state.diary[day];if(Array.isArray(x))return x;if(typeof x==="string")return x?[{id:day+"_0",t:"",text:x}]:[];return [];}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
 function renderDiary(){
   renderDiaryHist();
-  const inp=document.getElementById("diaryInput");
-  // 仅当输入框未聚焦时才回填当天内容，避免覆盖正在输入的字
-  if(inp&&document.activeElement!==inp) inp.value=state.diary[editingDay||TODAY]||"";
 }
 function renderDiaryHist(){
-  const days=Object.keys(state.diary).sort().reverse().slice(0,5);
-  document.getElementById("diaryHist").innerHTML=days.map(d=>`<div class="dh-item"><b>${d}</b><span class="dh-tx">${state.diary[d]}</span><span class="dh-act"><span class="dh-edit" onclick="editDiary('${d}')">改</span><span class="dh-del" onclick="delDiary('${d}')">✕</span></span></div>`).join("");
+  const days=Object.keys(state.diary).filter(d=>diaryArr(d).length).sort().reverse().slice(0,6);
+  document.getElementById("diaryHist").innerHTML=days.map(d=>{
+    const items=diaryArr(d).map(it=>`<div class="dh-item"><span class="dh-tx">${it.t?('<i style="color:#b6b4ad;font-style:normal;margin-right:5px">'+esc(it.t)+'</i>'):""}${esc(it.text)}</span><span class="dh-act"><span class="dh-edit" onclick="editDiary('${d}','${it.id}')">改</span><span class="dh-del" onclick="delDiary('${d}','${it.id}')">✕</span></span></div>`).join("");
+    return `<div class="dh-day"><b>${d}</b> <small style="color:#b6b4ad">${diaryArr(d).length}条</small></div>`+items;
+  }).join("")||'<div style="color:#b6b4ad;text-align:center;padding:8px 0">还没有日记，写一句记录今天吧</div>';
 }
 function saveDiary(){
   const inp=document.getElementById("diaryInput");
   const v=inp.value.trim();
-  const day=editingDay||TODAY;
-  if(v)state.diary[day]=v;else delete state.diary[day];
-  editingDay=null;
+  if(!v){ toast("写点什么再保存吧"); return; }
+  if(editingId){
+    const arr=diaryArr(editingDay);const it=arr.find(x=>x.id===editingId);
+    if(it)it.text=v; state.diary[editingDay]=arr;
+  } else {
+    const day=editingDay||TODAY;
+    const arr=diaryArr(day);
+    arr.push({id:day+"_"+Date.now(),t:nowHM(),text:v});
+    state.diary[day]=arr;
+  }
+  editingDay=null;editingId=null;
   save();inp.value="";renderDiaryHist();toast("已保存 · 今天你很棒");
 }
-function editDiary(d){
+function editDiary(day,id){
+  const arr=diaryArr(day);const it=arr.find(x=>x.id===id);if(!it)return;
   const inp=document.getElementById("diaryInput");
-  inp.value=state.diary[d]||"";
-  editingDay=d;inp.focus();
-  toast("正在修改 "+d+" 的日记，改完点保存");
+  inp.value=it.text||"";editingDay=day;editingId=id;inp.focus();
+  toast("正在修改这条，改完点保存");
 }
-function delDiary(d){
-  uiConfirm("确定删除 "+d+" 的日记吗？",ok=>{ if(!ok)return;
-    delete state.diary[d]; if(editingDay===d)editingDay=null;
+function delDiary(day,id){
+  uiConfirm("确定删除这条日记吗？",ok=>{ if(!ok)return;
+    const arr=diaryArr(day).filter(x=>x.id!==id);
+    if(arr.length)state.diary[day]=arr; else delete state.diary[day];
+    if(editingId===id){editingDay=null;editingId=null;}
     save();renderDiary();toast("已删除"); });
 }
 const WHO={me:"我",hub:"老公",inlaw:"公婆",all:"大家"};

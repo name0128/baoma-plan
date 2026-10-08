@@ -1,8 +1,10 @@
-const CACHE = 'cb-plan-v2';
+const CACHE = 'cb-plan-v3';
 const ASSETS = [
   './', './index.html', './change-plan.html',
   './feed.json', './manifest.webmanifest',
-  './icon-192.png', './icon-512.png'
+  './icon-192.png', './icon-512.png',
+  './icon-maskable-192.png', './icon-maskable-512.png',
+  './apple-touch-icon.png', './favicon.ico'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

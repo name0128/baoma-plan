@@ -839,7 +839,7 @@ function normalize(s){
   if(!Array.isArray(s.status))s.status=[];
   if(!s.selectedProvince)s.selectedProvince="全国";
   if(!s.tagDone||typeof s.tagDone!=="object")s.tagDone={};
-  if(!Array.isArray(s.team))s.team=[];
+  if(!Array.isArray(s.team))s.team=[];if(!s.teamDate)s.teamDate="";
   s.study=s.study||{tasks:[],checkin:{}};
   if(!Array.isArray(s.study.tasks))s.study.tasks=[];
   if(!s.study.checkin||typeof s.study.checkin!=="object")s.study.checkin={};
@@ -1785,7 +1785,7 @@ function renderTeam(){
   const items=state.team||[];
   const done=items.filter(t=>t.done).length;
   const pct=items.length?Math.round(done/items.length*100):0;
-  const head=`<div class="sec-note" style="margin:-4px 0 10px">一家五口同住，把事摊开说清，谁做谁打勾</div>`;
+  const head=`<div class="sec-note" style="margin:-4px 0 10px">一家五口同住，把事摊开说清，谁做谁打勾 · <b style="color:var(--ink)">每天自动重置</b></div>`;
   const prog=items.length?`<div class="team-prog"><div class="tp-bar"><div class="tp-fill" style="width:${pct}%"></div></div><span>${done}/${items.length} 完成 · ${pct}%</span></div>`:"";
   const form=`<div class="team-add"><button class="primary" onclick="addTeam()">＋ 加一件家务 / 带娃事</button></div>`;
   const preset=`<div class="team-preset">${TEAM_PRESET.map(t=>`<button class="tp-chip" onclick="quickTeam('${esc(t)}')">${esc(t)}</button>`).join("")}</div>`;
@@ -1813,6 +1813,14 @@ function pushTeam(txt,who){state.team=state.team||[];state.team.unshift({id:uid(
 function toggleTeam(id){const t=(state.team||[]).find(x=>x.id===id);if(!t)return;t.done=!t.done;save();renderTeam();renderReminder();}
 function setWho(id){const t=(state.team||[]).find(x=>x.id===id);if(!t)return;uiPick({title:"改派给谁",options:["我","老公","公婆","大家"],vals:["me","hub","inlaw","all"],cur:t.who,onPick:v=>{t.who=v;save();renderTeam();}});}
 function delTeam(id){uiConfirm({title:"删除这条分工",msg:"确定删除？",ok:"删除",danger:true,onOk:()=>{state.team=(state.team||[]).filter(x=>x.id!==id);save();renderTeam();}});}
+/* 家庭协作每天刷新：跨天后自动把"已完成"打勾清零（任务与指派保留），新的一天重新勾 */
+function refreshTeamDaily(){
+  if(state.teamDate===TODAY)return;
+  let changed=false;
+  (state.team||[]).forEach(t=>{ if(t.done){ t.done=false; changed=true; } });
+  state.teamDate=TODAY;
+  if(changed){ save(); }
+}
 
 /* ===== 娃成长 · 图文手账 ===== */
 const BABY_TYPES=[
@@ -2521,6 +2529,7 @@ function restoreSnap(i){
 function seedDemoAsk(){seedDemo();}
 
 function renderAll(){renderHeader();renderNav();renderShortcuts();renderChips();renderPreset();renderOverview();renderBoard();renderBaby();renderLedger();renderFinance();renderExam();renderFeed();renderTagPlans();renderPlans();renderCheckin();renderDiary();renderTeam();renderReminder();renderStorage();renderNotifyBtn();}
+refreshTeamDaily();
 renderAll();
 applyTheme();
 showPage('my');
@@ -2534,6 +2543,7 @@ function refreshDay(){
   if(t!==TODAY){
     TODAY=t;WEEK=weekStart(new Date());
     if(LF_YM>TODAY.slice(0,7))LF_YM=TODAY.slice(0,7);
+    refreshTeamDaily();
     renderAll();
     toast("新的一天 "+t+" · 继续加油 ☀");
     maybeNotifyToday();

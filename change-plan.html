@@ -1770,11 +1770,12 @@ function editDiary(day,id){
   toast("正在修改这条，改完点保存");
 }
 function delDiary(day,id){
-  uiConfirm("确定删除这条日记吗？",ok=>{ if(!ok)return;
+  uiConfirm({title:"删除这条日记",msg:"删除后不可恢复，确定吗？",ok:"删除",danger:true,onOk:()=>{
     const arr=diaryArr(day).filter(x=>x.id!==id);
     if(arr.length)state.diary[day]=arr; else delete state.diary[day];
     if(editingId===id){editingDay=null;editingId=null;}
-    save();renderDiary();toast("已删除"); });
+    save();renderDiary();toast("已删除");
+  }});
 }
 const WHO={me:"我",hub:"老公",inlaw:"公婆",all:"大家"};
 function whoTxt(w){return WHO[w]||w;}

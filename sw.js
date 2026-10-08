@@ -1,9 +1,9 @@
-const CACHE = 'cb-plan-v3';
+const CACHE = 'cb-plan-v4';
 const ASSETS = [
   './', './index.html', './change-plan.html',
   './feed.json', './manifest.webmanifest',
   './icon-192.png', './icon-512.png',
-  './icon-maskable-192.png', './icon-maskable-512.png',
+  './icon-maskable-192-v2.png', './icon-maskable-512-v2.png',
   './apple-touch-icon.png', './favicon.ico'
 ];
 self.addEventListener('install', e => {

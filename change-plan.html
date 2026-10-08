@@ -1310,19 +1310,19 @@ function renderCompareHtml(){
   const depAmt=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0),0);
   const depGain=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0)*rateOf(n)/100,0);
   const depPct=depAmt>0?depGain/depAmt*100:0;
-  const stAmt=(state.finance.stocks||[]).reduce((s,x)=>s+(+x.amount||0),0);
+  const stAmt=(state.finance.stocks||[]).reduce((s,x)=>s+(+x.shares||0),0);
   const stGain=stockDividend();
-  const stPct=stAmt>0?stGain/stAmt*100:0;
+  const stPct=stAmt>0?stGain/stAmt:0;
   const diff=stGain-depGain;
   return `<div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px">
     <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px">③ 存银行 vs 攒股息 · 一年到手对比</div>
     <table class="ftable"><tr><th>方案</th><th>投入本金</th><th>综合年化</th><th>一年到手</th></tr>
       <tr><td>存款/理财</td><td>¥${depAmt.toFixed(0)}</td><td>${depPct.toFixed(2)}%</td><td class="gn">¥${depGain.toFixed(0)}</td></tr>
-      <tr><td>攒股息(税后)</td><td>¥${stAmt.toFixed(0)}</td><td>${stPct.toFixed(2)}%</td><td class="gn">¥${stGain.toFixed(0)}</td></tr>
+      <tr><td>攒股息(税后)</td><td>${stAmt.toFixed(0)}股</td><td>¥${stPct.toFixed(2)}/股</td><td class="gn">¥${stGain.toFixed(0)}</td></tr>
     </table>
     <div class="fin-sum"><div class="f"><b>¥${Math.abs(diff).toFixed(0)}</b>
-      <small>${(depAmt+stAmt)===0?'先填金额':(diff>=0?'股息多赚':'存款多赚')}</small></div>
-      <div class="f"><b>${stPct.toFixed(2)}% vs ${depPct.toFixed(2)}%</b><small>股息率 vs 存款率</small></div></div>
+      <small>${(depAmt===0&&stAmt===0)?'先填金额':(diff>=0?'股息多赚':'存款多赚')}</small></div>
+      <div class="f"><b>¥${stPct.toFixed(2)}/股 vs ${depPct.toFixed(2)}%</b><small>每股分红 vs 存款率</small></div></div>
     <div style="font-size:11px;color:var(--mut);margin-top:6px">⚠ 股息有<b>股价波动、本金不保本</b>，单只别重仓；存款保本保息。不是"谁一定更好"，看你能承受多大波动。</div>
   </div>`;
 }
@@ -1330,7 +1330,7 @@ function renderCompare(){const el=document.getElementById("finCompare");if(el)el
 function updateFinSum(){
   const allocTotal=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0),0);
   const gainTotal=FIN.reduce((s,n)=>s+(state.finance.alloc[n]||0)*rateOf(n)/100,0)+stockDividend();
-  const stockTotal=(state.finance.stocks||[]).reduce((s,x)=>s+(x.amount||0),0);
+  const stockTotal=0;
   const baseTotal=allocTotal+stockTotal;
   const avg=baseTotal>0?gainTotal/baseTotal*100:0;
   const el=document.getElementById("finSum");if(!el)return;
@@ -1362,20 +1362,21 @@ function renderFinChart(){
 
 /* ===== 攒股息 · 按不同股票各自算（含分红次数与持股税率） ===== */
 function stockTaxRate(t){return t==="short"?0.2:t==="mid"?0.1:0;}
-function stockNet(s){return (s.amount||0)*(s.yield||0)/100*(1-stockTaxRate(s.tax));}
-function stockDividendGross(){return (state.finance.stocks||[]).reduce((s,x)=>s+(x.amount||0)*(x.yield||0)/100,0);}
+function stockGross(s){return (s.shares||0)*(s.dps||0);}
+function stockNet(s){return stockGross(s)*(1-stockTaxRate(s.tax));}
+function stockDividendGross(){return (state.finance.stocks||[]).reduce((s,x)=>s+stockGross(x),0);}
 function stockDividend(){return (state.finance.stocks||[]).reduce((s,x)=>s+stockNet(x),0);}
 function refreshStock(s){const el=document.getElementById("sg_"+s.id);if(el)el.textContent="¥"+stockNet(s).toFixed(0);updateFinSum();renderFinChart();renderStockSum();renderCompare();}
 function stockSumHtml(){
   const st=state.finance.stocks||[];
   const gross=stockDividendGross(),net=stockDividend(),taxAmt=gross-net;
-  const totalAmt=st.reduce((s,x)=>s+(+x.amount||0),0);
-  const wYield=totalAmt>0?net/totalAmt*100:0;
+  const totalAmt=st.reduce((s,x)=>s+(+x.shares||0),0);
+  const wYield=totalAmt>0?net/totalAmt:0;
   return `<div class="fin-sum" style="margin:8px 0 0">
-      <div class="f"><b>¥${totalAmt.toFixed(0)}</b><small>组合持仓</small></div>
+      <div class="f"><b>${totalAmt.toFixed(0)}</b><small>组合股数</small></div>
       <div class="f"><b>¥${gross.toFixed(0)}</b><small>年税前股息</small></div>
       <div class="f"><b>¥${net.toFixed(0)}</b><small>年税后到手</small></div>
-      <div class="f"><b>${wYield.toFixed(2)}%</b><small>组合股息率</small></div>
+      <div class="f"><b>¥${wYield.toFixed(2)}</b><small>每股年化分红</small></div>
       <div class="f"><b>¥${taxAmt.toFixed(0)}</b><small>被扣税</small></div></div>`;
 }
 function renderStockSum(){const el=document.getElementById("stockSum");if(el)el.innerHTML=stockSumHtml();}
@@ -1384,8 +1385,8 @@ function renderStockHtml(){
   const rows=st.map(s=>{
     const times=(s.times||1);
     return `<tr><td style="max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}${s.code?`(${s.code})`:""}<br><span style="color:#b6b4ad;font-size:10px">×${times}次/年</span></td>
-      <td><input type="number" value="${s.amount||0}" oninput="setStockAmt('${s.id}',this.value)" style="width:50px"></td>
-      <td><input type="number" step="0.1" value="${s.yield||0}" oninput="setStockYield('${s.id}',this.value)" style="width:36px">%</td>
+      <td><input type="number" value="${s.shares||0}" oninput="setStockShares('${s.id}',this.value)" style="width:54px"></td>
+      <td><input type="number" step="0.01" value="${s.dps||0}" oninput="setStockDps('${s.id}',this.value)" style="width:46px">元</td>
       <td><span class="picksel small" onclick="pickTax('${s.id}')">${taxShort(s.tax)}<span class="ar">▼</span></span></td>
       <td id="sg_${s.id}" class="gn">¥${stockNet(s).toFixed(0)}</td>
       <td style="text-align:center"><span style="color:#c6c4bd;cursor:pointer" onclick="delStock('${s.id}')">✕</span></td></tr>`;
@@ -1393,15 +1394,15 @@ function renderStockHtml(){
   const totalDiv=stockSumHtml();
   return `<div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px">
     <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:4px">② 攒股息 · 每只股票单独填（股息率/次数/持股税率各不同）</div>
-    <div style="font-size:11px;color:var(--mut);margin-bottom:6px">股息率填<b>年化</b>（上一年全年分红÷股价）；一年分几次只影响<b>到账节奏</b>，不影响年总额；持股&gt;1年免税。</div>
-    <table class="ftable"><tr><th>股票(×次数)</th><th>持仓</th><th>股息率</th><th>持股档</th><th>税后年息</th><th></th></tr>${rows||'<tr><td colspan="6" style="color:#b6b4ad;text-align:center">还没添加股票，点下方添加或看示例</td></tr>'}</table>
+    <div style="font-size:11px;color:var(--mut);margin-bottom:6px">每股分红填<b>年化</b>（上一年每股全年分红合计）；一年分几次只影响<b>到账节奏</b>，不影响年总额；持股&gt;1年免税。</div>
+    <table class="ftable"><tr><th>股票(×次数)</th><th>股数</th><th>每股分红</th><th>持股档</th><th>税后年息</th><th></th></tr>${rows||'<tr><td colspan="6" style="color:#b6b4ad;text-align:center">还没添加股票，点下方添加或看示例</td></tr>'}</table>
     <div class="lf-row" style="margin-bottom:6px">
       <input id="stName" placeholder="股票名" style="flex:1.4">
       <button class="picksel small" style="flex:0 0 auto" onclick="openStockPick2()">▾ 选</button>
       <input id="stCode" placeholder="代码" style="max-width:64px"></div>
     <div class="lf-row" style="margin-bottom:6px">
-      <input id="stAmt" type="number" placeholder="持仓¥">
-      <input id="stYield" type="number" step="0.1" placeholder="股息率%">
+      <input id="stShares" type="number" placeholder="持仓股数">
+      <input id="stDps" type="number" step="0.01" placeholder="每股分红元">
       <input id="stTimes" type="number" placeholder="次数" value="1" style="max-width:48px">
       <span class="picksel small" id="stTaxBtn" onclick="pickNewTax()">${taxShort(ST_NEW_TAX)}<span class="ar">▼</span></span></div>
     <button class="primary" onclick="addStock()">+ 添加一只股票</button>
@@ -1423,21 +1424,21 @@ function pickNewTax(){
   uiPick({title:"持股时间档（算税后股息）",options:TAX_OPTS,vals:["free","mid","short"],cur:ST_NEW_TAX,
     onPick:v=>{ST_NEW_TAX=v;const b=document.getElementById("stTaxBtn");if(b)b.innerHTML=taxShort(v)+'<span class="ar">▼</span>';}});
 }
-function addStock(){const name=document.getElementById("stName").value.trim();const code=document.getElementById("stCode").value.trim();const amt=parseFloat(document.getElementById("stAmt").value)||0;const yld=parseFloat(document.getElementById("stYield").value)||0;const times=Math.max(1,parseInt(document.getElementById("stTimes").value)||1);const tax=ST_NEW_TAX;if(!name){toast("请填股票名");return;}if(!(amt>0)){toast("持仓金额要>0");return;}if(!(yld>0)){toast("股息率要>0");return;}state.finance.stocks.push({id:Date.now()+Math.random(),name,code,amount:amt,yield:yld,times,tax});ST_NEW_TAX="free";save();renderFinance();toast("已添加 "+name);}
-function bindStockAuto(){const nm=document.getElementById("stName");if(!nm)return;const f=()=>{const hit=findStock(nm.value);if(!hit)return;const code=document.getElementById("stCode"),yld=document.getElementById("stYield");if(code&&!code.value)code.value=hit.code;if(yld&&!yld.value)yld.value=hit.yieldPct;};nm.addEventListener("blur",f);nm.addEventListener("change",f);}
+function addStock(){const name=document.getElementById("stName").value.trim();const code=document.getElementById("stCode").value.trim();const sh=parseInt(document.getElementById("stShares").value)||0;const dps=parseFloat(document.getElementById("stDps").value)||0;const times=Math.max(1,parseInt(document.getElementById("stTimes").value)||1);const tax=ST_NEW_TAX;if(!name){toast("请填股票名");return;}if(!(sh>0)){toast("持仓股数要>0");return;}if(!(dps>0)){toast("每股分红要>0");return;}state.finance.stocks.push({id:Date.now()+Math.random(),name,code,shares:sh,dps,times,tax});ST_NEW_TAX="free";save();renderFinance();toast("已添加 "+name);}
+function bindStockAuto(){const nm=document.getElementById("stName");if(!nm)return;const f=()=>{const hit=findStock(nm.value);if(!hit)return;const code=document.getElementById("stCode");if(code&&!code.value)code.value=hit.code;};nm.addEventListener("blur",f);nm.addEventListener("change",f);}
 function delStock(id){state.finance.stocks=state.finance.stocks.filter(x=>x.id!=id);save();renderFinance();}
-function setStockAmt(id,v){const s=state.finance.stocks.find(x=>x.id==id);if(s){s.amount=parseFloat(v)||0;save();refreshStock(s);}}
-function setStockYield(id,v){const s=state.finance.stocks.find(x=>x.id==id);if(s){s.yield=parseFloat(v)||0;save();refreshStock(s);}}
+function setStockShares(id,v){const s=state.finance.stocks.find(x=>x.id==id);if(s){s.shares=parseInt(v)||0;save();refreshStock(s);}}
+function setStockDps(id,v){const s=state.finance.stocks.find(x=>x.id==id);if(s){s.dps=parseFloat(v)||0;save();refreshStock(s);}}
 function setStockTax(id,v){const s=state.finance.stocks.find(x=>x.id==id);if(s){s.tax=v;save();refreshStock(s);}}
 function stockDemo(){
   if((state.finance.stocks||[]).length>0){uiConfirm({title:"载入股息示例",msg:"你已经添加了股票，仍要载入这份示例吗？<br>载入会替换现有列表。",ok:"载入示例",danger:true,onOk:doStockDemo});return;}
   doStockDemo();
 }
 function doStockDemo(){state.finance.stocks=[
-  {id:Date.now()+1,name:"中国神华",code:"601088",amount:5000,yield:6.8,times:2,tax:"free"},
-  {id:Date.now()+2,name:"工商银行",code:"601398",amount:3000,yield:5.5,times:1,tax:"free"},
-  {id:Date.now()+3,name:"长江电力",code:"600900",amount:3000,yield:4.0,times:2,tax:"free"},
-  {id:Date.now()+4,name:"中国移动",code:"600941",amount:2000,yield:5.0,times:2,tax:"free"}
+  {id:Date.now()+1,name:"中国神华",code:"601088",shares:1000,dps:2.26,times:2,tax:"free"},
+  {id:Date.now()+2,name:"工商银行",code:"601398",shares:1000,dps:0.3,times:1,tax:"free"},
+  {id:Date.now()+3,name:"长江电力",code:"600900",shares:1000,dps:0.85,times:2,tax:"free"},
+  {id:Date.now()+4,name:"中国移动",code:"600941",shares:1000,dps:4.5,times:2,tax:"free"}
 ];save();renderFinance();toast("已载入高股息示例(税后)");}
 
 /* ===== 备考规划 ===== */
@@ -2072,7 +2073,7 @@ function stockPick(opts){
 }
 function openStockPick(){stockPick({onPick:s=>{CB.stockName=s.name;CB.stockCode=s.code;cbAutoFill();}});}
 function openStockPick2(){stockPick({onPick:function(s){fillStockForm(s.name,s.code);}});}
-function fillStockForm(name,code){const n=document.getElementById("stName"),c=document.getElementById("stCode"),y=document.getElementById("stYield");if(n)n.value=name;if(c)c.value=code;if(y&&!y.value){const h=findStock(name);if(h)y.value=h.yieldPct;}}
+function fillStockForm(name,code){const n=document.getElementById("stName"),c=document.getElementById("stCode");if(n)n.value=name;if(c)c.value=code;}
 let CB={yieldPct:5,perShare:0.136,price:4.2,stockName:"",stockCode:"",batches:[{shares:1000,days:400},{shares:1000,days:20}]};
 
 function renderCalc(){
@@ -2178,14 +2179,14 @@ function applyCalcToStock(){
   const code=(document.getElementById("cbCode")?document.getElementById("cbCode").value.trim():"")||b.stockCode||"";
   if(!(r.shares>0)){toast("先填持股数与每股派息");return;}
   if(!(r.preTaxYield>0)){toast("先填股价或股息率");return;}
-  // 填税前股息率，由表格的持股档再扣税，保证与试算器结果一致
+  // 填年化每股分红，由表格的持股档再扣税，保证与试算器结果一致
   const yld=Math.round(r.preTaxYield*100)/100;
   let idx=-1;
   (state.finance.stocks||[]).forEach((s,i)=>{if(s.name===name)idx=i;});
   const doFill=()=>{
     const shortDays=b.batches.some(x=>cbRate(+x.days)>0);
     const item={id:idx>=0?state.finance.stocks[idx].id:Date.now()+Math.random(),
-      name,code,amount:Math.round(r.amount),yield:yld,
+      name,code,shares:Math.round(r.shares),dps:Math.round(r.gross/r.shares*100)/100,
       times:(idx>=0?state.finance.stocks[idx].times:1)||1,
       tax:shortDays?"mid":"free"};
     if(idx>=0)state.finance.stocks[idx]=item;else state.finance.stocks.push(item);

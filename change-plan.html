@@ -1389,7 +1389,7 @@ function renderStockHtml(){
       <td><input type="number" step="0.01" value="${s.dps||0}" oninput="setStockDps('${s.id}',this.value)" style="width:46px">元</td>
       <td><span class="picksel small" onclick="pickTax('${s.id}')">${taxShort(s.tax)}<span class="ar">▼</span></span></td>
       <td id="sg_${s.id}" class="gn">¥${stockNet(s).toFixed(0)}</td>
-      <td style="text-align:center"><span style="color:#c6c4bd;cursor:pointer" onclick="delStock('${s.id}')">✕</span></td></tr>`;
+      <td style="text-align:center"><span style="color:#3a8a5a;cursor:pointer;margin-right:6px" title="刷新最新派息" onclick="refreshOneDividend('${s.id}')">↻</span><span style="color:#c6c4bd;cursor:pointer" onclick="delStock('${s.id}')">✕</span></td></tr>`;
   }).join("");
   const totalDiv=stockSumHtml();
   return `<div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px">
@@ -1399,7 +1399,7 @@ function renderStockHtml(){
     <div class="lf-row" style="margin-bottom:6px">
       <input id="stName" placeholder="股票名" style="flex:1.4">
       <button class="picksel small" style="flex:0 0 auto" onclick="openStockPick2()">▾ 选</button>
-      <input id="stCode" placeholder="代码" style="max-width:64px"></div>
+      <input id="stCode" placeholder="代码" style="max-width:64px"><button class="picksel small" style="flex:0 0 auto" onclick="fetchDividendForForm()">获取派息</button></div>
     <div class="lf-row" style="margin-bottom:6px">
       <input id="stShares" type="number" placeholder="持仓股数">
       <input id="stDps" type="number" step="0.01" placeholder="每股分红元">
@@ -1407,6 +1407,7 @@ function renderStockHtml(){
       <span class="picksel small" id="stTaxBtn" onclick="pickNewTax()">${taxShort(ST_NEW_TAX)}<span class="ar">▼</span></span></div>
     <button class="primary" onclick="addStock()">+ 添加一只股票</button>
     <button class="seed" onclick="stockDemo()">填入示例（高股息股票）</button>
+    <button class="seed" onclick="refreshAllDividend()">↻ 刷新全部派息</button>
     <div id="stockSum">${totalDiv}</div>
   </div>
   <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:12px" id="calc"></div>`;
@@ -1440,6 +1441,59 @@ function doStockDemo(){state.finance.stocks=[
   {id:Date.now()+3,name:"长江电力",code:"600900",shares:1000,dps:0.85,times:2,tax:"free"},
   {id:Date.now()+4,name:"中国移动",code:"600941",shares:1000,dps:4.5,times:2,tax:"free"}
 ];save();renderFinance();toast("已载入高股息示例(税后)");}
+
+// ===== 每股派息自动更新（东方财富分红送配 JSONP，跨域免密钥）=====
+function fetchDividend(code, cbFn){
+  const c=(code||"").replace(/[^0-9]/g,"").slice(-6);
+  if(c.length<6){cbFn&&cbFn({err:"请输入6位A股代码"});return;}
+  const cbName="cbDiv_"+Date.now()+"_"+Math.floor(Math.random()*1e6);
+  const filt='(SECURITY_CODE="'+c+'")';
+  const url="https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_SHAREBONUS_DET&columns=ALL&filter="+encodeURIComponent(filt)+"&pageSize=50&sortColumns=PLAN_NOTICE_DATE&sortTypes=-1&source=WEB&client=WEB&js="+encodeURIComponent('{"data":(x),"pages":(tp)}')+"&callback="+cbName;
+  let scr;
+  const done=function(json){
+    try{delete window[cbName];}catch(e){}
+    if(scr&&scr.parentNode)scr.parentNode.removeChild(scr);
+    const data=json&&json.result&&json.result.data;
+    if(!data||!data.length){cbFn&&cbFn({err:"未找到该股票的分红数据"});return;}
+    const r=data[0];
+    const per10=parseFloat(r.PRETAX_BONUS_RMB)||0;
+    cbFn&&cbFn({ok:true,code:c,name:r.SECURITY_NAME_ABBR||"",dps:per10/10,per10:per10,progress:r.ASSIGN_PROGRESS||"",profile:r.IMPL_PLAN_PROFILE||"",report:(r.REPORT_DATE||"").slice(0,10),ex:(r.EX_DIVIDEND_DATE||"").slice(0,10)});
+  };
+  window[cbName]=done;
+  scr=document.createElement("script");
+  scr.src=url;
+  scr.onerror=function(){try{delete window[cbName];}catch(e){}if(scr.parentNode)scr.parentNode.removeChild(scr);cbFn&&cbFn({err:"网络获取失败，请联网后重试"});};
+  document.body.appendChild(scr);
+  setTimeout(function(){if(window[cbName]){try{delete window[cbName];}catch(e){}if(scr.parentNode)scr.parentNode.removeChild(scr);cbFn&&cbFn({err:"获取超时"});}},12000);
+}
+function fetchDividendForForm(){
+  const code=document.getElementById("stCode").value.trim();
+  if(!code){toast("先在左侧填股票代码");return;}
+  fetchDividend(code,function(res){
+    if(res.err){toast(res.err);return;}
+    const nm=document.getElementById("stName"); if(nm&&!nm.value)nm.value=res.name;
+    const dp=document.getElementById("stDps"); if(dp)dp.value=res.dps;
+    toast("已获取 "+res.name+" 最新派息："+(res.profile||("每10股派"+res.per10+"元"))+(res.report?"（"+res.report+"）":""));
+  });
+}
+function refreshOneDividend(id){
+  const s=state.finance.stocks.find(x=>x.id==id); if(!s)return;
+  fetchDividend(s.code,function(res){
+    if(res.err){toast((s.name||s.code)+"："+res.err);return;}
+    s.dps=res.dps; if(!s.name)s.name=res.name; save(); refreshStock(s);
+    toast("已更新 "+res.name+" 每股派息 ¥"+res.dps.toFixed(3));
+  });
+}
+function refreshAllDividend(){
+  const arr=state.finance.stocks||[]; if(!arr.length){toast("先添加股票");return;}
+  let n=0,fail=0;
+  toast("正在刷新 "+arr.length+" 只股票的最新派息…");
+  arr.forEach(function(s){ fetchDividend(s.code,function(res){
+    if(res.err){fail++;return;}
+    s.dps=res.dps; if(!s.name)s.name=res.name; n++; refreshStock(s);
+    if(n+fail===arr.length){ save(); renderFinance(); toast("已刷新 "+n+" 只"+(fail?("，"+fail+" 只未获取到"):"")+"（最新年度派息）"); }
+  }); });
+}
 
 /* ===== 备考规划 ===== */
 function renderExam(){
